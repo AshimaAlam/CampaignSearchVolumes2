@@ -3,19 +3,23 @@ library(ggplot2)
 library(plyr)
 library(dplyr)
 library(lubridate)
+library(plotly)
 
   data <- read.csv("data.csv")
+  
+  data$index <- 1:nrow(data)
+  data
   
   ui <- fluidPage(
     titlePanel("Campaign Search Volumes"),
     
     sidebarLayout(
       sidebarPanel(
-        sliderInput(inputId = "RetentionFactor", label = "Retention Factor ", min = 1,max = 10, value= 1,step = 0.1),
+        sliderInput(inputId = "RetentionFactor", label = "Retention Factor ", min = 0,max = 1, value= 0,step = 0.1),
       ),
       
       mainPanel(
-        plotOutput(outputId = "distPlot"),
+        plotlyOutput(outputId = "distPlot"),
         tableOutput("TbEfficiencies"),
       )
     )
@@ -26,7 +30,6 @@ library(lubridate)
     MC1 <- reactive({
       data %>% filter(data$MediaCampaign=="1")
     })
-    
     MC2 <- reactive({
       data %>% filter(data$MediaCampaign=="2")
     })    
@@ -34,19 +37,27 @@ library(lubridate)
       data %>% filter(data$MediaCampaign=="3")
     })
     
-    output$distPlot <- renderPlot({
+    output$distPlot <- renderPlotly({
+      myAdstock <- 0.0;
+      AdstockIterative <- function(MSpend,RF,Week)
+      {
+        myAdstock <- MSpend + RF * myAdstock
+        return(myAdstock)
+      }
       
-      #RF = data()$Media.Spend + (input$RetentionFactor * data()$Media.Spend)
-      #cbind(data, RF)
+      AdstockRecursive  <- function(MSpend,RF,week)
+      {
+        #return(MSpend + (RF * AdstockIterative(MSpend,RF, week-1)))
+        return(MSpend + (RF * lag(AdstockIterative(MSpend,RF, week))))
+      }  
       
-      data.df <- data
-      ggplot(data=data.df,
-             aes(x=as.factor(weekID), y=Media.Spend, 
-                 group=MediaCampaign, 
-                 color=as.factor(MediaCampaign))) + 
-        geom_line() + xlab("Weeks") + ylab("Adstock") + 
-        theme_bw() + scale_color_manual(values=c("red", "blue","green"))
-    }) 
+      data$Adstock = AdstockRecursive(data$Media.Spend,input$RetentionFactor,data$index)
+      Weeks<- as.factor(data$weekID)
+      Campaign <- as.factor(data$MediaCampaign)
+      ggplot(data,aes(x=Weeks, y=Adstock, group=MediaCampaign, color=Campaign)) + 
+      geom_line() + xlab("Week number per Campaign") + ylab("Adstock") +
+      theme_bw() + scale_color_manual(values=c("red", "blue","green"))
+    })
     
     Values <- reactive({
       
@@ -73,7 +84,6 @@ library(lubridate)
     output$TbEfficiencies <- renderTable({
       Values()
     })    
-    
   }
   
   shinyApp(ui = ui, server = server)
