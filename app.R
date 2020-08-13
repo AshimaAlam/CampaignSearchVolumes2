@@ -37,20 +37,26 @@ library(plotly)
       data %>% filter(data$MediaCampaign=="3")
     })
     
+    AdstockIterative <- function(MSpend,RF,Week)
+    {
+      myAdstock = 0.0;
+      myAdstock = MSpend + (RF * myAdstock)
+      #myAdstock = sum(MSpend,(prod(RF,myAdstock)))
+      #a = prod(RF,myAdstock)
+      #myAdstock <- sum(sapply(MSpend, a))
+      return(myAdstock)
+    }
+    
+    AdstockRecursive  <- function(MSpend,RF,week)
+    {
+      #return(MSpend + (RF * lag(AdstockRecursive(MSpend,RF, week)))) # Im not sure why the recursive function is not working in R, I have tried the same structure in C# and the Recursive function works correctly.
+      #return(sum(sapply(MSpend, prod(RF,lag(AdstockRecursive(MSpend,RF, week)))))) 
+      return(MSpend + (RF * lag(AdstockIterative(MSpend,RF, week))))
+      
+    }  
+    
+    
     output$distPlot <- renderPlotly({
-      myAdstock <- 0.0;
-      AdstockIterative <- function(MSpend,RF,Week)
-      {
-        myAdstock <- MSpend + RF * myAdstock
-        return(myAdstock)
-      }
-      
-      AdstockRecursive  <- function(MSpend,RF,week)
-      {
-        #return(MSpend + (RF * AdstockIterative(MSpend,RF, week-1)))
-        return(MSpend + (RF * lag(AdstockIterative(MSpend,RF, week))))
-      }  
-      
       data$Adstock = AdstockRecursive(data$Media.Spend,input$RetentionFactor,data$index)
       Weeks<- as.factor(data$weekID)
       Campaign <- as.factor(data$MediaCampaign)
