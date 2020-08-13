@@ -1,0 +1,118 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace AdStock
+{
+    class Program
+    {
+        //Retention Factor - This value will be adjustable using a slider on your Shiny app.
+        //Change it here if you would like to adjust it
+        private const double RF = 0.1;
+
+        static void Main(string[] args)
+        {
+            using (StreamReader dataFile = new StreamReader("data.csv"))
+            {
+                dataFile.ReadLine(); //read header row
+
+                string line = "";
+
+                //The following dictionary stores mediaSpend for a campaign/weekID combination
+                //e.g. mediaSpendDictionary["1_4"] = 11
+                Dictionary<string, double> mediaSpendDictionary = new Dictionary<string, double>();
+
+                //The following dictionary stores searchVolume for a campaign/weekID combination
+                //e.g. searchVolumeDictionary["1_4"] = 16
+                Dictionary<string, double> searchVolumeDictionary = new Dictionary<string, double>();
+
+                //This List store media campaigns (e.g. 1,2,3)
+                List<string> mediaCampaignList = new List<string>();
+
+                //Output files containing the AdStock values for each week in a campaign
+                //Both files should return the same values
+                StreamWriter outputFileIterative = new StreamWriter("outputIterative.csv", false);
+                StreamWriter outputFileRecursive = new StreamWriter("outputRecursive.csv", false);
+
+                //Writing the headings
+                outputFileIterative.WriteLine("Week,Media Spend,Media Campaign,Search Volume,WeekID,AdStockIterative");
+                outputFileRecursive.WriteLine("Week,Media Spend,Media Campaign,Search Volume,WeekID,AdStockIterative");
+
+                //read each line in the input data file data.csv
+                while (!string.IsNullOrEmpty(line = dataFile.ReadLine()))
+                {
+                    string[] values = line.Split(',');
+                    string week = values[0];
+                    double mediaSpend = Convert.ToDouble(values[1]);
+                    string mediaCampaign = values[2];
+                    int searchVolume = Convert.ToInt16(values[3]);
+                    int weekID = Convert.ToInt16(values[4]);
+
+                    if (!mediaCampaignList.Contains(mediaCampaign))
+                        mediaCampaignList.Add(mediaCampaign);
+
+                    string key = string.Concat(mediaCampaign, "_", weekID);
+                    mediaSpendDictionary.Add(key, mediaSpend);
+                    searchVolumeDictionary.Add(key, searchVolume);
+
+                    //Get AdStock value using either of the 2 methods below (the values returned should be equal)
+                    double adStockIterative = AdStockIterative(mediaSpendDictionary, mediaCampaign, weekID);
+                    double adStockRecursive = AdStockRecursive(mediaSpendDictionary, mediaCampaign, weekID);
+
+                    //Output to console window
+                    Console.WriteLine("Week = {0}, Media Spend = {1}, Media Campaign = {2}, Search Volume = {3}, WeekID = {4}, AdStockIterative = {5}",
+                                        week, mediaSpend, mediaCampaign, searchVolume, weekID, adStockIterative);
+
+                    //Output to outputIterative.csv
+                    outputFileIterative.WriteLine("{0},{1},{2},{3},{4},{5}",
+                                        week, mediaSpend, mediaCampaign, searchVolume, weekID, adStockIterative);
+
+                    //Output to outputRecursive.csv
+                    outputFileRecursive.WriteLine("{0},{1},{2},{3},{4},{5}",
+                                        week, mediaSpend, mediaCampaign, searchVolume, weekID, adStockRecursive);
+                    //Console.ReadLine();
+                }
+
+                outputFileIterative.Close();
+                outputFileRecursive.Close();
+            }
+        }
+
+        //This method finds the AdStock value using a for loop.
+        //Parameters:
+        //  mediaSpendDictionary    - stores media spend for a particular campaign/week combination
+        //  mediaCampaign           - media campaign that we are calculating AdStock for
+        //  week                    - week that we are calculating AdStock for
+        static double AdStockIterative(Dictionary<string, double> mediaSpendDictionary, string mediaCampaign, int week)
+        {
+            double adStock = 0.0;
+            for (int j = 1; j <= week; j++)
+            {
+                string key = string.Concat(mediaCampaign, "_", j);
+                adStock = mediaSpendDictionary[key] + RF * adStock;
+            }
+            return adStock;
+        }
+
+        //This method finds the AdStock value using recursion.
+        //Parameters:
+        //  mediaSpendDictionary    - stores media spend for a particular campaign/week combination
+        //  mediaCampaign           - media campaign that we are calculating AdStock for
+        //  week                    - week that we are calculating AdStock for
+        static double AdStockRecursive(Dictionary<string, double> mediaSpendDictionary, string mediaCampaign, int week)
+        {
+            string key = string.Concat(mediaCampaign, "_", week);
+            double mediaSpend = mediaSpendDictionary[key];
+            
+            if (week == 1)
+            {
+                return mediaSpend;
+            }
+
+            return mediaSpend + RF * AdStockRecursive(mediaSpendDictionary, mediaCampaign, week - 1);
+        }
+    }
+}
